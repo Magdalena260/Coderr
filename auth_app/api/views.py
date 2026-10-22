@@ -11,6 +11,7 @@ from auth_app.models import Profile
 from .permissions import IsProfileOwner
 from .serializers import (
     BusinessProfileSerializer,
+    CustomerProfileSerializer,
     ProfileSerializer,
     RegistrationSerializer,
 )
@@ -76,4 +77,12 @@ class BusinessProfileListView(generics.ListAPIView):
         type="business"
     ).select_related("user")
     serializer_class = BusinessProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class CustomerProfileListView(generics.ListAPIView):
+    queryset = Profile.objects.filter(
+        type="customer"
+    ).select_related("user")
+    serializer_class = CustomerProfileSerializer
     permission_classes = [IsAuthenticated]
