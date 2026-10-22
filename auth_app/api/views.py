@@ -9,7 +9,11 @@ from rest_framework.views import APIView
 from auth_app.models import Profile
 
 from .permissions import IsProfileOwner
-from .serializers import ProfileSerializer, RegistrationSerializer
+from .serializers import (
+    BusinessProfileSerializer,
+    ProfileSerializer,
+    RegistrationSerializer,
+)
 
 
 class RegistrationView(generics.CreateAPIView):
@@ -65,3 +69,11 @@ class ProfileView(generics.RetrieveUpdateAPIView):
         if self.request.method == "PATCH":
             permissions.append(IsProfileOwner)
         return [permission() for permission in permissions]
+
+
+class BusinessProfileListView(generics.ListAPIView):
+    queryset = Profile.objects.filter(
+        type="business"
+    ).select_related("user")
+    serializer_class = BusinessProfileSerializer
+    permission_classes = [IsAuthenticated]

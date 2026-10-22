@@ -91,3 +91,19 @@ class ProfileSerializer(serializers.ModelSerializer):
         if user_data:
             instance.user.save(update_fields=list(user_data))
         return super().update(instance, validated_data)
+
+
+class BusinessProfileSerializer(ProfileSerializer):
+    class Meta(ProfileSerializer.Meta):
+        fields = [
+            "user",
+            "username",
+            "first_name",
+            "last_name",
+            "file",
+            "location",
+            "tel",
+            "description",
+            "working_hours",
+            "type",
+        ]
