@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from auth_app.models import Profile
 
+from .permissions import IsProfileOwner
 from .serializers import ProfileSerializer, RegistrationSerializer
 
 
@@ -51,9 +52,16 @@ class LoginView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-class ProfileView(generics.RetrieveAPIView):
+class ProfileView(generics.RetrieveUpdateAPIView):
     queryset = Profile.objects.select_related("user")
     serializer_class = ProfileSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = "user_id"
     lookup_url_kwarg = "pk"
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated]
+        if self.request.method == "PATCH":
+            permissions.append(IsProfileOwner)
+        return [permission() for permission in permissions]
