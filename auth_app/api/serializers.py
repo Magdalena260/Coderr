@@ -107,3 +107,16 @@ class BusinessProfileSerializer(ProfileSerializer):
             "working_hours",
             "type",
         ]
+
+    
+class CustomerProfileSerializer(ProfileSerializer):
+    class Meta(ProfileSerializer.Meta):
+        fields = [
+            "user",
+            "username",
+            "first_name",
+            "last_name",
+            "file",
+            "type",
+        ]
+
