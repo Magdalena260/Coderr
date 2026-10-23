@@ -23,6 +23,17 @@ class OfferListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.query_params.get("search")
+
+        if search:
+            queryset = queryset.filter(
+                title__icontains=search
+            )
+
+        return queryset
+
 
 class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Offer.objects.select_related(
