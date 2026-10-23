@@ -31,17 +31,21 @@ class OfferListCreateView(generics.ListCreateAPIView):
         search = params.get("search")
         max_price = params.get("max_price")
         max_delivery_time = params.get("max_delivery_time")
+        ordering = params.get("ordering")
 
         if search:
             queryset = queryset.filter(
                 title__icontains=search
             )
 
-        if max_price is not None:
-            price = self.parse_number(max_price, "max_price")
+        if max_price is not None or ordering in ["price", "-price"]:
             queryset = queryset.annotate(
                 lowest_price=Min("details__price")
-            ).filter(lowest_price__lte=price)
+            )
+
+        if max_price is not None:
+            price = self.parse_number(max_price, "max_price")
+            queryset = queryset.filter(lowest_price__lte=price)
 
         if max_delivery_time is not None:
             days = self.parse_number(
@@ -52,6 +56,18 @@ class OfferListCreateView(generics.ListCreateAPIView):
                     "details__delivery_time_in_days"
                 )
             ).filter(shortest_delivery__lte=days)
+
+        if ordering is not None:
+            if ordering not in ["price", "-price"]:
+                raise serializers.ValidationError({
+                    "ordering": "Use price or -price."
+                })
+
+            field = "lowest_price"
+            if ordering == "-price":
+                field = "-lowest_price"
+
+            queryset = queryset.order_by(field, "id")
 
         return queryset
 
