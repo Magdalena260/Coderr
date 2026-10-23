@@ -26,8 +26,11 @@ class OfferListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        search = self.request.query_params.get("search")
-        max_price = self.request.query_params.get("max_price")
+        params = self.request.query_params
+
+        search = params.get("search")
+        max_price = params.get("max_price")
+        max_delivery_time = params.get("max_delivery_time")
 
         if search:
             queryset = queryset.filter(
@@ -35,23 +38,37 @@ class OfferListCreateView(generics.ListCreateAPIView):
             )
 
         if max_price is not None:
-            try:
-                price = int(max_price)
-            except ValueError:
-                raise serializers.ValidationError({
-                    "max_price": "Must be a whole number."
-                })
-
-            if price < 0:
-                raise serializers.ValidationError({
-                    "max_price": "Must be zero or greater."
-                })
-
+            price = self.parse_number(max_price, "max_price")
             queryset = queryset.annotate(
                 lowest_price=Min("details__price")
             ).filter(lowest_price__lte=price)
 
+        if max_delivery_time is not None:
+            days = self.parse_number(
+                max_delivery_time, "max_delivery_time"
+            )
+            queryset = queryset.annotate(
+                shortest_delivery=Min(
+                    "details__delivery_time_in_days"
+                )
+            ).filter(shortest_delivery__lte=days)
+
         return queryset
+
+    def parse_number(self, value, field):
+        try:
+            number = int(value)
+        except ValueError:
+            raise serializers.ValidationError({
+                field: "Must be a whole number."
+            })
+
+        if number < 0:
+            raise serializers.ValidationError({
+                field: "Must be zero or greater."
+            })
+
+        return number
 
 
 class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
