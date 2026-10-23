@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from offers_app.models import Offer
 
+from .pagination import OfferPagination
 from .permissions import IsBusinessUser, IsOfferOwner
 from .serializers import OfferSerializer
 
@@ -14,6 +15,7 @@ class OfferListCreateView(generics.ListCreateAPIView):
         "user"
     ).prefetch_related("details")
     serializer_class = OfferSerializer
+    pagination_class = OfferPagination
     permission_classes = [AllowAny]
 
     def get_permissions(self):
