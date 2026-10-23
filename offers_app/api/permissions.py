@@ -1,4 +1,5 @@
-﻿from rest_framework.permissions import BasePermission
+﻿
+from rest_framework.permissions import BasePermission
 
 
 class IsBusinessUser(BasePermission):
@@ -9,3 +10,8 @@ class IsBusinessUser(BasePermission):
         return hasattr(user, "profile") and (
             user.profile.type == "business"
         )
+
+
+class IsOfferOwner(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.user == request.user
