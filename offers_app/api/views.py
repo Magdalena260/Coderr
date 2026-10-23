@@ -31,12 +31,19 @@ class OfferListCreateView(generics.ListCreateAPIView):
         search = params.get("search")
         max_price = params.get("max_price")
         max_delivery_time = params.get("max_delivery_time")
+        creator_id = params.get("creator_id")
         ordering = params.get("ordering")
 
         if search:
             queryset = queryset.filter(
                 title__icontains=search
             )
+
+        if creator_id is not None:
+            user_id = self.parse_number(
+                creator_id, "creator_id"
+            )
+            queryset = queryset.filter(user_id=user_id)
 
         if max_price is not None or ordering in ["price", "-price"]:
             queryset = queryset.annotate(
