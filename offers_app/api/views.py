@@ -1,4 +1,5 @@
 
+
 from django.db.models import Min
 from rest_framework import generics, serializers
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -13,7 +14,8 @@ from .serializers import OfferSerializer
 class OfferListCreateView(generics.ListCreateAPIView):
     queryset = Offer.objects.select_related(
         "user"
-    ).prefetch_related("details")
+    ).prefetch_related("details").order_by("id")
+
     serializer_class = OfferSerializer
     pagination_class = OfferPagination
     permission_classes = [AllowAny]
@@ -100,8 +102,10 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Offer.objects.select_related(
         "user"
     ).prefetch_related("details")
+
     serializer_class = OfferSerializer
     permission_classes = [IsAuthenticated, IsOfferOwner]
+
     http_method_names = [
         "get", "patch", "delete", "head", "options"
     ]
@@ -110,3 +114,4 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method in ["GET", "HEAD", "OPTIONS"]:
             return [AllowAny()]
         return [IsAuthenticated(), IsOfferOwner()]
+
