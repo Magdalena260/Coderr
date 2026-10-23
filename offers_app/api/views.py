@@ -22,3 +22,11 @@ class OfferListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class OfferDetailView(generics.RetrieveAPIView):
+    queryset = Offer.objects.select_related(
+        "user"
+    ).prefetch_related("details")
+    serializer_class = OfferSerializer
+    permission_classes = [AllowAny]
