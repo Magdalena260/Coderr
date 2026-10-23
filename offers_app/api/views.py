@@ -1,5 +1,6 @@
 
-from rest_framework import generics
+from django.db.models import Min
+from rest_framework import generics, serializers
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from offers_app.models import Offer
@@ -26,11 +27,29 @@ class OfferListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         queryset = super().get_queryset()
         search = self.request.query_params.get("search")
+        max_price = self.request.query_params.get("max_price")
 
         if search:
             queryset = queryset.filter(
                 title__icontains=search
             )
+
+        if max_price is not None:
+            try:
+                price = int(max_price)
+            except ValueError:
+                raise serializers.ValidationError({
+                    "max_price": "Must be a whole number."
+                })
+
+            if price < 0:
+                raise serializers.ValidationError({
+                    "max_price": "Must be zero or greater."
+                })
+
+            queryset = queryset.annotate(
+                lowest_price=Min("details__price")
+            ).filter(lowest_price__lte=price)
 
         return queryset
 
