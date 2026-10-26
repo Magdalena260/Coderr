@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'auth_app',
     'offers_app',
+    'orders_app',
 ]
 
 

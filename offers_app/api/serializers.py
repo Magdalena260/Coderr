@@ -1,93 +1,85 @@
 
-from django.db import transaction
 from rest_framework import serializers
 
-from offers_app.models import Offer, OfferDetail
+from offers_app.models import OfferDetail
+from orders_app.models import Order
 
 
-class OfferDetailSerializer(serializers.ModelSerializer):
+class OrderSerializer(serializers.ModelSerializer):
+    offer_detail_id = serializers.PrimaryKeyRelatedField(
+        queryset=OfferDetail.objects.select_related("offer__user"),
+        source="offer_detail",
+        write_only=True
+    )
+
     class Meta:
-        model = OfferDetail
+        model = Order
         fields = [
             "id",
+            "customer_user",
+            "business_user",
+            "offer_detail",
+            "offer_detail_id",
             "title",
             "revisions",
             "delivery_time_in_days",
             "price",
             "features",
             "offer_type",
-        ]
-        read_only_fields = ["id"]
-
-
-class OfferSerializer(serializers.ModelSerializer):
-    details = OfferDetailSerializer(many=True)
-
-    class Meta:
-        model = Offer
-        fields = [
-            "id",
-            "user",
-            "title",
-            "image",
-            "description",
+            "status",
             "created_at",
             "updated_at",
-            "details",
         ]
         read_only_fields = [
             "id",
-            "user",
+            "customer_user",
+            "business_user",
+            "offer_detail",
+            "title",
+            "revisions",
+            "delivery_time_in_days",
+            "price",
+            "features",
+            "offer_type",
+            "status",
             "created_at",
             "updated_at",
         ]
 
-    def validate_details(self, value):
-        types = [detail["offer_type"] for detail in value]
-        required = {"basic", "standard", "premium"}
-
-        if not types or len(types) != len(set(types)):
+    def validate(self, attrs):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
             raise serializers.ValidationError(
-                "Offer types must be unique."
+                "Authentication is required."
             )
 
-        if not set(types).issubset(required):
+        profile = getattr(request.user, "profile", None)
+        if profile is None or profile.type != "customer":
             raise serializers.ValidationError(
-                "Invalid offer type."
+                "Only customers can create orders."
             )
 
-        if not self.partial and set(types) != required:
+        detail = attrs["offer_detail"]
+
+        if detail.offer.user_id == request.user.id:
             raise serializers.ValidationError(
-                "Exactly one basic, standard and premium detail is required."
+                "You cannot order your own offer."
             )
 
-        return value
+        return attrs
 
-    @transaction.atomic
     def create(self, validated_data):
-        details_data = validated_data.pop("details")
-        offer = Offer.objects.create(**validated_data)
+        detail = validated_data["offer_detail"]
+        customer = self.context["request"].user
 
-        for detail_data in details_data:
-            OfferDetail.objects.create(
-                offer=offer, **detail_data
-            )
-
-        return offer
-
-    @transaction.atomic
-    def update(self, instance, validated_data):
-        details_data = validated_data.pop("details", None)
-        instance = super().update(instance, validated_data)
-
-        if details_data is not None:
-            for detail_data in details_data:
-                detail_type = detail_data.pop("offer_type")
-                detail = instance.details.get(offer_type=detail_type)
-
-                for field, value in detail_data.items():
-                    setattr(detail, field, value)
-
-                detail.save()
-
-        return instance
+        return Order.objects.create(
+            customer_user=customer,
+            business_user=detail.offer.user,
+            offer_detail=detail,
+            title=detail.title,
+            revisions=detail.revisions,
+            delivery_time_in_days=detail.delivery_time_in_days,
+            price=detail.price,
+            features=list(detail.features),
+            offer_type=detail.offer_type,
+        )
