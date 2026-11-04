@@ -1,5 +1,7 @@
 
-from django.db.models import Min
+from decimal import Decimal, InvalidOperation
+
+from django.db.models import Min, Q
 from rest_framework import generics, serializers
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
@@ -19,6 +21,10 @@ class OfferListCreateView(generics.ListCreateAPIView):
     pagination_class = OfferPagination
     permission_classes = [AllowAny]
 
+    PRICE_ORDERINGS = (
+        "min_price", "-min_price", "price", "-price"
+    )
+
     def get_permissions(self):
         if self.request.method == "POST":
             return [IsAuthenticated(), IsBusinessUser()]
@@ -30,70 +36,105 @@ class OfferListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         queryset = super().get_queryset()
         params = self.request.query_params
+        queryset = self._apply_search(queryset, params.get("search"))
+        queryset = self._apply_creator(queryset, params.get("creator_id"))
+        queryset = self._apply_price_filters(queryset, params)
+        queryset = self._apply_delivery_filter(
+            queryset, params.get("max_delivery_time")
+        )
+        return self._apply_ordering(queryset, params.get("ordering"))
 
-        search = params.get("search")
-        max_price = params.get("max_price")
-        max_delivery_time = params.get("max_delivery_time")
-        creator_id = params.get("creator_id")
-        ordering = params.get("ordering")
-
+    def _apply_search(self, queryset, search):
         if search:
             queryset = queryset.filter(
-                title__icontains=search
+                Q(title__icontains=search)
+                | Q(description__icontains=search)
             )
-
-        if creator_id is not None:
-            user_id = self.parse_number(
-                creator_id, "creator_id"
-            )
-            queryset = queryset.filter(user_id=user_id)
-
-        if max_price is not None or ordering in ["price", "-price"]:
-            queryset = queryset.annotate(
-                lowest_price=Min("details__price")
-            )
-
-        if max_price is not None:
-            price = self.parse_number(max_price, "max_price")
-            queryset = queryset.filter(lowest_price__lte=price)
-
-        if max_delivery_time is not None:
-            days = self.parse_number(
-                max_delivery_time, "max_delivery_time"
-            )
-            queryset = queryset.annotate(
-                shortest_delivery=Min(
-                    "details__delivery_time_in_days"
-                )
-            ).filter(shortest_delivery__lte=days)
-
-        if ordering is not None:
-            if ordering not in ["price", "-price"]:
-                raise serializers.ValidationError({
-                    "ordering": "Use price or -price."
-                })
-
-            field = "lowest_price"
-            if ordering == "-price":
-                field = "-lowest_price"
-
-            queryset = queryset.order_by(field, "id")
-
         return queryset
 
-    def parse_number(self, value, field):
+    def _apply_creator(self, queryset, creator_id):
+        if creator_id is None:
+            return queryset
+        user_id = self._parse_integer(creator_id, "creator_id")
+        return queryset.filter(user_id=user_id)
+
+    def _needs_price_annotation(self, params):
+        has_min = params.get("min_price") is not None
+        has_max = params.get("max_price") is not None
+        ordering = params.get("ordering")
+        return has_min or has_max or ordering in self.PRICE_ORDERINGS
+
+    def _apply_price_filters(self, queryset, params):
+        if not self._needs_price_annotation(params):
+            return queryset
+        queryset = queryset.annotate(
+            lowest_price=Min("details__price")
+        )
+        queryset = self._filter_price_bound(
+            queryset, params, "min_price", "gte"
+        )
+        return self._filter_price_bound(
+            queryset, params, "max_price", "lte"
+        )
+
+    def _filter_price_bound(self, queryset, params, name, lookup):
+        raw_value = params.get(name)
+        if raw_value is None:
+            return queryset
+        value = self._parse_price(raw_value, name)
+        return queryset.filter(
+            **{f"lowest_price__{lookup}": value}
+        )
+
+    def _apply_delivery_filter(self, queryset, raw_value):
+        if raw_value is None:
+            return queryset
+        days = self._parse_integer(raw_value, "max_delivery_time")
+        return queryset.annotate(
+            shortest_delivery=Min("details__delivery_time_in_days")
+        ).filter(shortest_delivery__lte=days)
+
+    def _apply_ordering(self, queryset, ordering):
+        if ordering is None:
+            return queryset
+        fields = {
+            "min_price": "lowest_price",
+            "-min_price": "-lowest_price",
+            "price": "lowest_price",
+            "-price": "-lowest_price",
+            "updated_at": "updated_at",
+            "-updated_at": "-updated_at",
+        }
+        if ordering not in fields:
+            raise serializers.ValidationError({
+                "ordering": "Invalid ordering field."
+            })
+        return queryset.order_by(fields[ordering], "id")
+
+    def _parse_integer(self, value, field):
         try:
             number = int(value)
         except ValueError:
             raise serializers.ValidationError({
                 field: "Must be a whole number."
             })
-
         if number < 0:
             raise serializers.ValidationError({
                 field: "Must be zero or greater."
             })
+        return number
 
+    def _parse_price(self, value, field):
+        try:
+            number = Decimal(value)
+        except (InvalidOperation, ValueError):
+            raise serializers.ValidationError({
+                field: "Must be a valid number."
+            })
+        if not number.is_finite() or number < 0:
+            raise serializers.ValidationError({
+                field: "Must be zero or greater."
+            })
         return number
 
 
