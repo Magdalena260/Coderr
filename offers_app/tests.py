@@ -1,5 +1,6 @@
 
 from django.contrib.auth import get_user_model
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -36,6 +37,7 @@ class OfferTests(APITestCase):
             title="Logo Design",
             description="Professional logo design"
         )
+
         self.detail = OfferDetail.objects.create(
             offer=self.offer,
             title="Basic Logo",
@@ -51,6 +53,7 @@ class OfferTests(APITestCase):
             title="Website Design",
             description="Professional website design"
         )
+
         OfferDetail.objects.create(
             offer=self.second_offer,
             title="Basic Website",
@@ -131,20 +134,42 @@ class OfferTests(APITestCase):
             status.HTTP_400_BAD_REQUEST
         )
 
-    def test_offer_detail_is_public(self):
-        response = self.client.get(
-            f"/api/offers/{self.offer.id}/"
+    def test_offer_detail_requires_login(self):
+        url = f"/api/offers/{self.offer.id}/"
+
+        response = self.client.get(url)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_401_UNAUTHORIZED
         )
+
+        self.client.force_authenticate(
+            user=self.other_user
+        )
+
+        response = self.client.get(url)
 
         self.assertEqual(
             response.status_code,
             status.HTTP_200_OK
         )
 
-    def test_single_offer_detail_is_public(self):
-        response = self.client.get(
-            f"/api/offerdetails/{self.detail.id}/"
+    def test_single_offer_detail_requires_login(self):
+        url = f"/api/offerdetails/{self.detail.id}/"
+
+        response = self.client.get(url)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_401_UNAUTHORIZED
         )
+
+        self.client.force_authenticate(
+            user=self.other_user
+        )
+
+        response = self.client.get(url)
 
         self.assertEqual(
             response.status_code,
@@ -160,6 +185,7 @@ class OfferTests(APITestCase):
             response.status_code,
             status.HTTP_200_OK
         )
+
         self.assertEqual(
             len(response.data["results"]),
             1
@@ -174,6 +200,7 @@ class OfferTests(APITestCase):
             response.status_code,
             status.HTTP_200_OK
         )
+
         self.assertEqual(
             len(response.data["results"]),
             1
@@ -188,6 +215,7 @@ class OfferTests(APITestCase):
             response.status_code,
             status.HTTP_200_OK
         )
+
         self.assertEqual(
             len(response.data["results"]),
             1
@@ -234,6 +262,7 @@ class OfferTests(APITestCase):
             response.status_code,
             status.HTTP_204_NO_CONTENT
         )
+
         self.assertFalse(
             Offer.objects.filter(
                 id=self.offer.id
@@ -255,7 +284,11 @@ class OfferTests(APITestCase):
             response.status_code,
             status.HTTP_403_FORBIDDEN
         )
-        self.assertEqual(Offer.objects.count(), 2)
+
+        self.assertEqual(
+            Offer.objects.count(),
+            2
+        )
 
     def test_business_can_create_offer(self):
         self.client.force_authenticate(
@@ -272,13 +305,25 @@ class OfferTests(APITestCase):
             response.status_code,
             status.HTTP_201_CREATED
         )
-        self.assertEqual(Offer.objects.count(), 3)
+
+        self.assertEqual(
+            Offer.objects.count(),
+            3
+        )
 
         new_offer = Offer.objects.get(
             title="New Design Offer"
         )
-        self.assertEqual(new_offer.user, self.owner)
-        self.assertEqual(new_offer.details.count(), 3)
+
+        self.assertEqual(
+            new_offer.user,
+            self.owner
+        )
+
+        self.assertEqual(
+            new_offer.details.count(),
+            3
+        )
 
     def test_create_offer_without_details(self):
         self.client.force_authenticate(
@@ -295,7 +340,11 @@ class OfferTests(APITestCase):
             response.status_code,
             status.HTTP_400_BAD_REQUEST
         )
-        self.assertEqual(Offer.objects.count(), 2)
+
+        self.assertEqual(
+            Offer.objects.count(),
+            2
+        )
 
     def test_create_offer_with_duplicate_packages(self):
         self.client.force_authenticate(
@@ -315,7 +364,11 @@ class OfferTests(APITestCase):
             response.status_code,
             status.HTTP_400_BAD_REQUEST
         )
-        self.assertEqual(Offer.objects.count(), 2)
+
+        self.assertEqual(
+            Offer.objects.count(),
+            2
+        )
 
     def test_owner_can_patch_offer_title(self):
         self.client.force_authenticate(
@@ -334,6 +387,7 @@ class OfferTests(APITestCase):
         )
 
         self.offer.refresh_from_db()
+
         self.assertEqual(
             self.offer.title,
             "Updated Logo Design"
@@ -363,4 +417,8 @@ class OfferTests(APITestCase):
         )
 
         self.detail.refresh_from_db()
-        self.assertEqual(self.detail.price, 95)
+
+        self.assertEqual(
+            self.detail.price,
+            95
+        )
