@@ -152,11 +152,11 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ["GET", "HEAD", "OPTIONS"]:
-            return [AllowAny()]
+            return [IsAuthenticated()]
         return [IsAuthenticated(), IsOfferOwner()]
 
 
 class OfferDetailSingleView(generics.RetrieveAPIView):
     queryset = OfferDetail.objects.select_related("offer")
     serializer_class = OfferDetailSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
