@@ -1,182 +1,81 @@
 
 from django.contrib.auth import get_user_model
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from auth_app.models import Profile
 from offers_app.models import Offer, OfferDetail
+from orders_app.models import Order
 
 
-User = get_user_model()
-
-
-class OfferTests(APITestCase):
+class OrderTests(APITestCase):
 
     def setUp(self):
-        self.owner = User.objects.create_user(
-            username="offer_owner",
-            password="TestPassword123!"
-        )
-        self.other_user = User.objects.create_user(
-            username="other_user",
+        User = get_user_model()
+
+        self.customer = User.objects.create_user(
+            username="test_customer",
             password="TestPassword123!"
         )
 
-        Profile.objects.update_or_create(
-            user=self.owner,
-            defaults={"type": "business"}
+        self.business = User.objects.create_user(
+            username="test_business",
+            password="TestPassword123!"
         )
-        Profile.objects.update_or_create(
-            user=self.other_user,
-            defaults={"type": "customer"}
+
+        Profile.objects.create(
+            user=self.customer,
+            type="customer"
+        )
+
+        Profile.objects.create(
+            user=self.business,
+            type="business"
         )
 
         self.offer = Offer.objects.create(
-            user=self.owner,
+            user=self.business,
             title="Logo Design",
-            description="Professional logo design"
+            description="Ein individuelles Logo"
         )
+
         self.detail = OfferDetail.objects.create(
             offer=self.offer,
             title="Basic Logo",
-            revisions=2,
-            delivery_time_in_days=3,
-            price=75,
-            features=["Logo", "PNG"],
-            offer_type="basic"
-        )
-
-        self.second_offer = Offer.objects.create(
-            user=self.other_user,
-            title="Website Design",
-            description="Professional website design"
-        )
-        OfferDetail.objects.create(
-            offer=self.second_offer,
-            title="Basic Website",
             revisions=1,
-            delivery_time_in_days=10,
-            price=250,
-            features=["Website"],
+            delivery_time_in_days=5,
+            price=75,
+            features=["Logo", "PNG Datei"],
             offer_type="basic"
         )
 
-    def get_valid_offer_data(self):
-        return {
-            "title": "New Design Offer",
-            "description": "Three design packages",
-            "details": [
-                {
-                    "title": "Basic Design",
-                    "revisions": 1,
-                    "delivery_time_in_days": 3,
-                    "price": 50,
-                    "features": ["PNG"],
-                    "offer_type": "basic"
-                },
-                {
-                    "title": "Standard Design",
-                    "revisions": 2,
-                    "delivery_time_in_days": 5,
-                    "price": 100,
-                    "features": ["PNG", "SVG"],
-                    "offer_type": "standard"
-                },
-                {
-                    "title": "Premium Design",
-                    "revisions": 3,
-                    "delivery_time_in_days": 7,
-                    "price": 150,
-                    "features": ["PNG", "SVG", "PDF"],
-                    "offer_type": "premium"
-                }
-            ]
-        }
-
-    def test_offers_list_is_public(self):
-        response = self.client.get("/api/offers/")
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
+        self.order = Order.objects.create(
+            customer_user=self.customer,
+            business_user=self.business,
+            offer_detail=self.detail,
+            title=self.detail.title,
+            revisions=self.detail.revisions,
+            delivery_time_in_days=self.detail.delivery_time_in_days,
+            price=self.detail.price,
+            features=self.detail.features,
+            offer_type=self.detail.offer_type
         )
 
-    def test_invalid_max_price(self):
-        response = self.client.get(
-            "/api/offers/?max_price=abc"
-        )
+        self.url = f"/api/orders/{self.order.id}/"
 
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_400_BAD_REQUEST
-        )
-
-    def test_negative_delivery_time(self):
-        response = self.client.get(
-            "/api/offers/?max_delivery_time=-5"
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_400_BAD_REQUEST
-        )
-
-    def test_invalid_ordering(self):
-        response = self.client.get(
-            "/api/offers/?ordering=title"
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_400_BAD_REQUEST
-        )
-
-    def test_offer_detail_requires_login(self):
-        url = f"/api/offers/{self.offer.id}/"
-
-        response = self.client.get(url)
+    def test_anonymous_cannot_view_orders(self):
+        response = self.client.get("/api/orders/")
 
         self.assertEqual(
             response.status_code,
             status.HTTP_401_UNAUTHORIZED
         )
 
-        self.client.force_authenticate(
-            user=self.other_user
-        )
+    def test_customer_can_view_order(self):
+        self.client.force_authenticate(user=self.customer)
 
-        response = self.client.get(url)
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
-        )
-
-    def test_single_offer_detail_requires_login(self):
-        url = f"/api/offerdetails/{self.detail.id}/"
-
-        response = self.client.get(url)
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_401_UNAUTHORIZED
-        )
-
-        self.client.force_authenticate(
-            user=self.other_user
-        )
-
-        response = self.client.get(url)
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
-        )
-
-    def test_search_filter(self):
-        response = self.client.get(
-            "/api/offers/?search=Logo"
-        )
+        response = self.client.get(self.url)
 
         self.assertEqual(
             response.status_code,
@@ -184,60 +83,16 @@ class OfferTests(APITestCase):
         )
 
         self.assertEqual(
-            len(response.data["results"]),
-            1
+            response.data["price"],
+            75
         )
 
-    def test_max_price_filter(self):
-        response = self.client.get(
-            "/api/offers/?max_price=100"
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
-        )
-
-        self.assertEqual(
-            len(response.data["results"]),
-            1
-        )
-
-    def test_delivery_time_filter(self):
-        response = self.client.get(
-            "/api/offers/?max_delivery_time=5"
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
-        )
-
-        self.assertEqual(
-            len(response.data["results"]),
-            1
-        )
-
-    def test_unauthenticated_cannot_create_offer(self):
-        response = self.client.post(
-            "/api/offers/",
-            {"title": "New Offer"},
-            format="json"
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_401_UNAUTHORIZED
-        )
-
-    def test_other_user_cannot_edit_offer(self):
-        self.client.force_authenticate(
-            user=self.other_user
-        )
+    def test_customer_cannot_update_status(self):
+        self.client.force_authenticate(user=self.customer)
 
         response = self.client.patch(
-            f"/api/offers/{self.offer.id}/",
-            {"title": "Changed Title"},
+            self.url,
+            {"status": "completed"},
             format="json"
         )
 
@@ -246,55 +101,40 @@ class OfferTests(APITestCase):
             status.HTTP_403_FORBIDDEN
         )
 
-    def test_owner_can_delete_offer(self):
-        self.client.force_authenticate(
-            user=self.owner
-        )
-
-        response = self.client.delete(
-            f"/api/offers/{self.offer.id}/"
-        )
+        self.order.refresh_from_db()
 
         self.assertEqual(
-            response.status_code,
-            status.HTTP_204_NO_CONTENT
+            self.order.status,
+            "in_progress"
         )
 
-        self.assertFalse(
-            Offer.objects.filter(
-                id=self.offer.id
-            ).exists()
-        )
+    def test_business_can_complete_order(self):
+        self.client.force_authenticate(user=self.business)
 
-    def test_customer_cannot_create_offer(self):
-        self.client.force_authenticate(
-            user=self.other_user
-        )
-
-        response = self.client.post(
-            "/api/offers/",
-            self.get_valid_offer_data(),
+        response = self.client.patch(
+            self.url,
+            {"status": "completed"},
             format="json"
         )
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_403_FORBIDDEN
+            status.HTTP_200_OK
         )
+
+        self.order.refresh_from_db()
 
         self.assertEqual(
-            Offer.objects.count(),
-            2
+            self.order.status,
+            "completed"
         )
 
-    def test_business_can_create_offer(self):
-        self.client.force_authenticate(
-            user=self.owner
-        )
+    def test_customer_can_create_order(self):
+        self.client.force_authenticate(user=self.customer)
 
         response = self.client.post(
-            "/api/offers/",
-            self.get_valid_offer_data(),
+            "/api/orders/",
+            {"offer_detail_id": self.detail.id},
             format="json"
         )
 
@@ -304,78 +144,16 @@ class OfferTests(APITestCase):
         )
 
         self.assertEqual(
-            Offer.objects.count(),
-            3
-        )
-
-        new_offer = Offer.objects.get(
-            title="New Design Offer"
-        )
-
-        self.assertEqual(
-            new_offer.user,
-            self.owner
-        )
-
-        self.assertEqual(
-            new_offer.details.count(),
-            3
-        )
-
-    def test_create_offer_without_details(self):
-        self.client.force_authenticate(
-            user=self.owner
-        )
-
-        response = self.client.post(
-            "/api/offers/",
-            {"title": "Incomplete Offer"},
-            format="json"
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_400_BAD_REQUEST
-        )
-
-        self.assertEqual(
-            Offer.objects.count(),
+            Order.objects.count(),
             2
         )
 
-    def test_create_offer_with_duplicate_packages(self):
-        self.client.force_authenticate(
-            user=self.owner
-        )
+    def test_completed_order_count(self):
+        self.order.status = "completed"
+        self.order.save()
 
-        data = self.get_valid_offer_data()
-        data["details"][1]["offer_type"] = "basic"
-
-        response = self.client.post(
-            "/api/offers/",
-            data,
-            format="json"
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_400_BAD_REQUEST
-        )
-
-        self.assertEqual(
-            Offer.objects.count(),
-            2
-        )
-
-    def test_owner_can_patch_offer_title(self):
-        self.client.force_authenticate(
-            user=self.owner
-        )
-
-        response = self.client.patch(
-            f"/api/offers/{self.offer.id}/",
-            {"title": "Updated Logo Design"},
-            format="json"
+        response = self.client.get(
+            f"/api/completed-order-count/{self.business.id}/"
         )
 
         self.assertEqual(
@@ -383,39 +161,7 @@ class OfferTests(APITestCase):
             status.HTTP_200_OK
         )
 
-        self.offer.refresh_from_db()
-
         self.assertEqual(
-            self.offer.title,
-            "Updated Logo Design"
-        )
-
-    def test_owner_can_patch_package_price(self):
-        self.client.force_authenticate(
-            user=self.owner
-        )
-
-        response = self.client.patch(
-            f"/api/offers/{self.offer.id}/",
-            {
-                "details": [
-                    {
-                        "offer_type": "basic",
-                        "price": 95
-                    }
-                ]
-            },
-            format="json"
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
-        )
-
-        self.detail.refresh_from_db()
-
-        self.assertEqual(
-            self.detail.price,
-            95
+            response.data["completed_order_count"],
+            1
         )
