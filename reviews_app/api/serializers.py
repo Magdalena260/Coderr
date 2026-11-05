@@ -33,35 +33,34 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         request = self.context.get("request")
-
         if request is None or not request.user.is_authenticated:
             raise serializers.ValidationError(
                 "Authentication is required."
             )
-
         if self.instance is not None:
-            if "business_user" in attrs:
-                raise serializers.ValidationError({
-                    "business_user": "Cannot change the business user."
-                })
-            return attrs
+            self._validate_update(attrs)
+        else:
+            self._validate_new_review(attrs, request.user)
+        return attrs
 
+    def _validate_update(self, attrs):
+        if "business_user" in attrs:
+            raise serializers.ValidationError({
+                "business_user": "Cannot change the business user."
+            })
+
+    def _validate_new_review(self, attrs, user):
         business_user = attrs["business_user"]
-
-        if business_user == request.user:
+        if business_user == user:
             raise serializers.ValidationError(
                 "You cannot review yourself."
             )
-
         if Review.objects.filter(
-            business_user=business_user,
-            reviewer=request.user
+            business_user=business_user, reviewer=user
         ).exists():
             raise serializers.ValidationError(
                 "You have already reviewed this business user."
             )
-
-        return attrs
 
     def create(self, validated_data):
         return Review.objects.create(

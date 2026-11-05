@@ -2,6 +2,7 @@
 from rest_framework import generics, permissions
 
 from reviews_app.models import Review
+
 from .serializers import ReviewSerializer
 
 
@@ -9,7 +10,6 @@ class IsReviewAuthor(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
-
         return obj.reviewer_id == request.user.id
 
 
@@ -24,24 +24,17 @@ class ReviewListCreateView(generics.ListCreateAPIView):
             "business_user",
             "reviewer"
         ).order_by("-created_at")
-
-        business_id = self.request.query_params.get(
-            "business_user_id"
+        queryset = self._filter_by_param(
+            queryset, "business_user_id"
         )
-        reviewer_id = self.request.query_params.get(
-            "reviewer_id"
+        return self._filter_by_param(
+            queryset, "reviewer_id"
         )
 
-        if business_id:
-            queryset = queryset.filter(
-                business_user_id=business_id
-            )
-
-        if reviewer_id:
-            queryset = queryset.filter(
-                reviewer_id=reviewer_id
-            )
-
+    def _filter_by_param(self, queryset, param_name):
+        value = self.request.query_params.get(param_name)
+        if value:
+            return queryset.filter(**{param_name: value})
         return queryset
 
 
