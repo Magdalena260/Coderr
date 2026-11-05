@@ -11,6 +11,10 @@ User = get_user_model()
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(
+        required=True,
+        allow_blank=False
+    )
     password = serializers.CharField(
         write_only=True,
         validators=[validate_password]
@@ -36,7 +40,9 @@ class RegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "repeated_password": "Passwords do not match."
             })
-        if User.objects.filter(email__iexact=attrs["email"]).exists():
+        if User.objects.filter(
+            email__iexact=attrs["email"]
+        ).exists():
             raise serializers.ValidationError({
                 "email": "Email already registered."
             })
@@ -69,27 +75,43 @@ class ProfileSerializer(serializers.ModelSerializer):
         allow_blank=True
     )
     email = serializers.EmailField(
-        source="user.email", required=False
+        source="user.email",
+        required=False
     )
 
     class Meta:
         model = Profile
         fields = [
-            "user", "username", "first_name",
-            "last_name", "file", "location",
-            "tel", "description", "working_hours",
-            "type", "email", "created_at",
+            "user",
+            "username",
+            "first_name",
+            "last_name",
+            "file",
+            "location",
+            "tel",
+            "description",
+            "working_hours",
+            "type",
+            "email",
+            "created_at",
         ]
         read_only_fields = [
-            "user", "type", "created_at"
+            "user",
+            "type",
+            "created_at",
         ]
 
     def update(self, instance, validated_data):
         user_data = validated_data.pop("user", {})
+
         for field, value in user_data.items():
             setattr(instance.user, field, value)
+
         if user_data:
-            instance.user.save(update_fields=list(user_data))
+            instance.user.save(
+                update_fields=list(user_data)
+            )
+
         return super().update(instance, validated_data)
 
 
