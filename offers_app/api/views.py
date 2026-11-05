@@ -98,12 +98,9 @@ class OfferListCreateView(generics.ListCreateAPIView):
         if ordering is None:
             return queryset
         fields = {
-            "min_price": "lowest_price",
-            "-min_price": "-lowest_price",
-            "price": "lowest_price",
-            "-price": "-lowest_price",
-            "updated_at": "updated_at",
-            "-updated_at": "-updated_at",
+            "min_price": "lowest_price", "-min_price": "-lowest_price",
+            "price": "lowest_price", "-price": "-lowest_price",
+            "updated_at": "updated_at", "-updated_at": "-updated_at",
         }
         if ordering not in fields:
             raise serializers.ValidationError({

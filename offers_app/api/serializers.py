@@ -77,10 +77,8 @@ class OfferSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "details": "Three packages are required."
             })
-
         types = [d.get("offer_type") for d in details]
         required = {"basic", "standard", "premium"}
-
         if len(types) != 3 or set(types) != required:
             raise serializers.ValidationError({
                 "details": (
@@ -165,9 +163,7 @@ class OfferSerializer(serializers.ModelSerializer):
         detail_type = detail_data.pop("offer_type")
 
         try:
-            detail = instance.details.get(
-                offer_type=detail_type
-            )
+            detail = instance.details.get(offer_type=detail_type)
         except OfferDetail.DoesNotExist:
             raise serializers.ValidationError({
                 "details": "Package does not exist."
@@ -175,7 +171,6 @@ class OfferSerializer(serializers.ModelSerializer):
 
         for field, value in detail_data.items():
             setattr(detail, field, value)
-
         detail.save()
 
     @transaction.atomic
