@@ -53,14 +53,14 @@ class OfferListCreateView(generics.ListCreateAPIView):
         return queryset
 
     def _apply_creator(self, queryset, creator_id):
-        if creator_id is None:
+        if not creator_id:
             return queryset
         user_id = self._parse_integer(creator_id, "creator_id")
         return queryset.filter(user_id=user_id)
 
     def _needs_price_annotation(self, params):
-        has_min = params.get("min_price") is not None
-        has_max = params.get("max_price") is not None
+        has_min = bool(params.get("min_price"))
+        has_max = bool(params.get("max_price"))
         ordering = params.get("ordering")
         return has_min or has_max or ordering in self.PRICE_ORDERINGS
 
@@ -79,7 +79,7 @@ class OfferListCreateView(generics.ListCreateAPIView):
 
     def _filter_price_bound(self, queryset, params, name, lookup):
         raw_value = params.get(name)
-        if raw_value is None:
+        if not raw_value:
             return queryset
         value = self._parse_price(raw_value, name)
         return queryset.filter(
@@ -87,7 +87,7 @@ class OfferListCreateView(generics.ListCreateAPIView):
         )
 
     def _apply_delivery_filter(self, queryset, raw_value):
-        if raw_value is None:
+        if not raw_value:
             return queryset
         days = self._parse_integer(raw_value, "max_delivery_time")
         return queryset.annotate(
@@ -95,12 +95,15 @@ class OfferListCreateView(generics.ListCreateAPIView):
         ).filter(shortest_delivery__lte=days)
 
     def _apply_ordering(self, queryset, ordering):
-        if ordering is None:
+        if not ordering:
             return queryset
         fields = {
-            "min_price": "lowest_price", "-min_price": "-lowest_price",
-            "price": "lowest_price", "-price": "-lowest_price",
-            "updated_at": "updated_at", "-updated_at": "-updated_at",
+            "min_price": "lowest_price",
+            "-min_price": "-lowest_price",
+            "price": "lowest_price",
+            "-price": "-lowest_price",
+            "updated_at": "updated_at",
+            "-updated_at": "-updated_at",
         }
         if ordering not in fields:
             raise serializers.ValidationError({
