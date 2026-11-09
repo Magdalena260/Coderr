@@ -31,11 +31,9 @@ The application allows business users to publish service offers and customers to
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
-cd coderr
+git clone https://github.com/Magdalena260/Coderr.git
+cd Coderr
 ```
-
-Replace `<repository-url>` with the URL of the GitHub repository.
 
 ### 2. Create a virtual environment
 
@@ -173,7 +171,7 @@ python manage.py migrate --check
 
 ## Code Quality
 
-The project uses Ruff for basic Python code quality checks.
+The project uses Ruff for Python code quality checks.
 
 Run:
 
@@ -200,7 +198,7 @@ Log in using the administrator credentials.
 ## Project Structure
 
 ```text
-coderr/
+Coderr/
 ├── auth_app/
 ├── core/
 ├── offers_app/
@@ -255,3 +253,7 @@ The application is configured for local development. Production deployment requi
 This project was created as part of the Developer Akademie Fullstack Developer training program.
 
 The goal of the project is to implement a RESTful backend using Django and Django REST Framework, including authentication, permissions, database models, serializers, API views and automated tests.
+
+### Repository
+
+https://github.com/Magdalena260/Coderr
