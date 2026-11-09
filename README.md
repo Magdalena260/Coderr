@@ -1,4 +1,5 @@
 
+
 # Coderr Backend
 
 Coderr is a REST API backend for a service marketplace, developed with Django and Django REST Framework.
@@ -14,6 +15,7 @@ The application allows business users to publish service offers and customers to
 - Token Authentication
 - Pillow
 - python-dotenv
+- django-cors-headers
 
 ## Features
 
@@ -21,10 +23,12 @@ The application allows business users to publish service offers and customers to
 - Customer and business profiles
 - Profile management
 - Service offers with three pricing tiers
+- Offer filtering, searching and ordering
 - Order management
 - Customer reviews
 - Business order statistics
 - General platform statistics
+- CORS support for local frontend development
 
 ## Installation
 
@@ -87,6 +91,21 @@ The development server will be available at:
 
 http://127.0.0.1:8000/
 
+## Frontend Integration
+
+Coderr is designed to work with a separate frontend application.
+
+The backend uses `django-cors-headers` to allow requests from the local development frontend.
+
+The configured frontend origins are:
+
+- http://127.0.0.1:5500
+- http://localhost:5500
+
+Start the Django backend on port `8000` and the local frontend on port `5500`.
+
+The frontend can communicate with the API through HTTP requests.
+
 ## API Endpoints
 
 ### Authentication and Profiles
@@ -107,6 +126,17 @@ http://127.0.0.1:8000/
 | GET, PATCH, DELETE | `/api/offers/<id>/` | Retrieve, update or delete an offer |
 | GET | `/api/offerdetails/<id>/` | Retrieve offer details |
 
+The offer list supports optional query parameters:
+
+- `search`
+- `creator_id`
+- `min_price`
+- `max_price`
+- `max_delivery_time`
+- `ordering`
+
+Empty optional filter values are ignored.
+
 ### Orders
 
 | Method | Endpoint | Description |
@@ -121,13 +151,24 @@ http://127.0.0.1:8000/
 | Method | Endpoint | Description |
 |---|---|---|
 | GET, POST | `/api/reviews/` | List or create reviews |
-| PATCH, DELETE | `/api/reviews/<id>/` | Update or delete a review |
+| GET, PATCH, DELETE | `/api/reviews/<id>/` | Retrieve, update or delete a review |
+
+Review endpoints require authentication.
+
+Only authorized users can create, update or delete reviews.
 
 ### General Information
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/base-info/` | Retrieve general platform statistics |
+
+The general platform statistics include:
+
+- Total number of reviews
+- Average review rating
+- Number of business profiles
+- Number of offers
 
 ## Authentication
 
@@ -169,9 +210,39 @@ Check whether database migrations are pending:
 python manage.py migrate --check
 ```
 
+## Test Coverage
+
+The project can be checked with the Python `coverage` package.
+
+Install the test coverage tool if necessary:
+
+```bash
+python -m pip install coverage
+```
+
+Run the tests with coverage measurement:
+
+```bash
+python -m coverage run --source=auth_app,offers_app,orders_app,reviews_app manage.py test
+```
+
+Display the coverage report:
+
+```bash
+python -m coverage report -m
+```
+
+The project aims to achieve a test coverage of at least 95%.
+
 ## Code Quality
 
 The project uses Ruff for Python code quality checks.
+
+Install Ruff if necessary:
+
+```bash
+python -m pip install ruff
+```
 
 Run:
 
@@ -218,7 +289,7 @@ Handles user registration, login, authentication and profile management.
 
 **offers_app**
 
-Manages service offers and their associated pricing details.
+Manages service offers, filtering and associated pricing details.
 
 **orders_app**
 
@@ -246,7 +317,15 @@ Never commit passwords, authentication tokens or secret keys to the repository.
 
 The Django secret key is loaded from the `.env` file using `python-dotenv`.
 
-The application is configured for local development. Production deployment requires additional security configuration, including appropriate debug settings, allowed hosts and secure secret management.
+The application is configured for local development.
+
+Production deployment requires additional security configuration, including:
+
+- Disabling debug mode
+- Configuring allowed hosts
+- Restricting CORS origins
+- Secure secret management
+- Appropriate production database and server configuration
 
 ## Project Information
 
