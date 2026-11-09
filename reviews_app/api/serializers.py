@@ -10,7 +10,7 @@ User = get_user_model()
 
 class ReviewSerializer(serializers.ModelSerializer):
     business_user = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all()
+        queryset=User.objects.filter(profile__type="business")
     )
 
     class Meta:
@@ -56,7 +56,8 @@ class ReviewSerializer(serializers.ModelSerializer):
                 "You cannot review yourself."
             )
         if Review.objects.filter(
-            business_user=business_user, reviewer=user
+            business_user=business_user,
+            reviewer=user
         ).exists():
             raise serializers.ValidationError(
                 "You have already reviewed this business user."
