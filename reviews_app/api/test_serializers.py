@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.test import APITestCase
 
+from auth_app.models import Profile
 from reviews_app.api.serializers import ReviewSerializer
 from reviews_app.models import Review
 
@@ -15,14 +16,23 @@ User = get_user_model()
 class ReviewSerializerTests(APITestCase):
 
     def setUp(self):
-        self.reviewer = User.objects.create_user(
-            username="review_customer",
+        self.reviewer = self.create_user(
+            "review_customer", "customer"
+        )
+        self.business = self.create_user(
+            "review_business", "business"
+        )
+        self.other_business = self.create_user(
+            "other_business", "business"
+        )
+
+    def create_user(self, username, user_type):
+        user = User.objects.create_user(
+            username=username,
             password="TestPassword123!"
         )
-        self.business = User.objects.create_user(
-            username="review_business",
-            password="TestPassword123!"
-        )
+        Profile.objects.create(user=user, type=user_type)
+        return user
 
     def valid_data(self):
         return {
@@ -64,10 +74,10 @@ class ReviewSerializerTests(APITestCase):
         self.assertEqual(review.business_user, self.business)
 
     def test_user_cannot_review_themselves(self):
-        data = self.valid_data()
-        data["business_user"] = self.reviewer.id
-
-        serializer = self.make_serializer(data)
+        serializer = self.make_serializer(
+            self.valid_data(),
+            user=self.business
+        )
 
         self.assertFalse(serializer.is_valid())
         self.assertIn("non_field_errors", serializer.errors)
@@ -86,7 +96,7 @@ class ReviewSerializerTests(APITestCase):
         review = self.create_review()
 
         serializer = self.make_serializer(
-            {"business_user": self.reviewer.id},
+            {"business_user": self.other_business.id},
             instance=review
         )
 
@@ -127,6 +137,15 @@ class ReviewSerializerTests(APITestCase):
     def test_unknown_business_user_is_rejected(self):
         data = self.valid_data()
         data["business_user"] = 9999999
+
+        serializer = self.make_serializer(data)
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("business_user", serializer.errors)
+
+    def test_customer_cannot_be_reviewed(self):
+        data = self.valid_data()
+        data["business_user"] = self.reviewer.id
 
         serializer = self.make_serializer(data)
 
