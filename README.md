@@ -1,3 +1,4 @@
+
 # Coderr Backend
 
 Coderr is a REST API backend for a service marketplace, developed with Django and Django REST Framework.
@@ -34,18 +35,18 @@ git clone <repository-url>
 cd coderr
 ```
 
-Replace `<repository-url>` with the URL of your GitHub repository.
+Replace `<repository-url>` with the URL of the GitHub repository.
 
 ### 2. Create a virtual environment
 
-Windows:
+**Windows (PowerShell):**
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-Linux / macOS:
+**Linux / macOS:**
 
 ```bash
 python3 -m venv .venv
@@ -60,17 +61,17 @@ pip install -r requirements.txt
 
 ### 4. Configure environment variables
 
-Create a `.env` file in the project root directory.
+Create a `.env` file in the project root directory, alongside `manage.py`.
 
 Add the following variable:
 
 ```env
-SECRET_KEY=your-own-secure-django-secret-key
+DJANGO_SECRET_KEY=your-own-secure-django-secret-key
 ```
 
 Replace the placeholder with a secure Django secret key.
 
-The `.env` file must not be committed to Git.
+The `.env` file contains sensitive information and must not be committed to Git.
 
 ### 5. Apply database migrations
 
@@ -84,7 +85,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-The API will be available at:
+The development server will be available at:
 
 http://127.0.0.1:8000/
 
@@ -134,13 +135,15 @@ http://127.0.0.1:8000/
 
 Protected API endpoints require token authentication.
 
-Include the token in the HTTP request header:
+After logging in, use the returned authentication token in the HTTP request header:
 
 ```http
 Authorization: Token YOUR_AUTH_TOKEN
 ```
 
-The token is returned after successful registration or login.
+Replace `YOUR_AUTH_TOKEN` with the actual token.
+
+Access to protected endpoints depends on the authenticated user's role and permissions.
 
 ## Running Tests
 
@@ -150,6 +153,36 @@ Run the project's Django tests with:
 python manage.py test
 ```
 
+Check the Django configuration:
+
+```bash
+python manage.py check
+```
+
+Check whether new migrations are required:
+
+```bash
+python manage.py makemigrations --check --dry-run
+```
+
+Check whether database migrations are pending:
+
+```bash
+python manage.py migrate --check
+```
+
+## Code Quality
+
+The project uses Ruff for basic Python code quality checks.
+
+Run:
+
+```bash
+python -m ruff check . --select E,F --exclude migrations
+```
+
+This checks selected Python style rules and common errors.
+
 ## Django Administration
 
 Create an administrator account:
@@ -158,9 +191,11 @@ Create an administrator account:
 python manage.py createsuperuser
 ```
 
-Then open:
+Start the development server and open:
 
 http://127.0.0.1:8000/admin/
+
+Log in using the administrator credentials.
 
 ## Project Structure
 
@@ -177,9 +212,31 @@ coderr/
 └── README.md
 ```
 
+### Applications
+
+**auth_app**
+
+Handles user registration, login, authentication and profile management.
+
+**offers_app**
+
+Manages service offers and their associated pricing details.
+
+**orders_app**
+
+Handles customer orders, order status updates and business order statistics.
+
+**reviews_app**
+
+Manages customer reviews and ratings.
+
+**core**
+
+Contains the main Django project configuration, including settings and URL routing.
+
 ## Security
 
-The following files and directories are excluded from version control:
+The following files and directories should be excluded from version control:
 
 - `.env`
 - `db.sqlite3`
@@ -187,8 +244,14 @@ The following files and directories are excluded from version control:
 - `__pycache__/`
 - `media/`
 
-Do not commit passwords, authentication tokens or secret keys to the repository.
+Never commit passwords, authentication tokens or secret keys to the repository.
+
+The Django secret key is loaded from the `.env` file using `python-dotenv`.
+
+The application is configured for local development. Production deployment requires additional security configuration, including appropriate debug settings, allowed hosts and secure secret management.
 
 ## Project Information
 
 This project was created as part of the Developer Akademie Fullstack Developer training program.
+
+The goal of the project is to implement a RESTful backend using Django and Django REST Framework, including authentication, permissions, database models, serializers, API views and automated tests.
