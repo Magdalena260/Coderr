@@ -1,6 +1,7 @@
 
-from rest_framework import generics, permissions
+from rest_framework import filters, generics, permissions
 
+from auth_app.models import Profile
 from reviews_app.models import Review
 
 from .serializers import ReviewSerializer
@@ -13,23 +14,33 @@ class IsReviewAuthor(permissions.BasePermission):
         return obj.reviewer_id == request.user.id
 
 
+class IsCustomerForReviewCreate(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method != "POST":
+            return True
+        return Profile.objects.filter(
+            user=request.user,
+            type="customer"
+        ).exists()
+
+
 class ReviewListCreateView(generics.ListCreateAPIView):
     serializer_class = ReviewSerializer
     permission_classes = [
-        permissions.IsAuthenticatedOrReadOnly
+        permissions.IsAuthenticated,
+        IsCustomerForReviewCreate,
     ]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["rating", "updated_at"]
 
     def get_queryset(self):
         queryset = Review.objects.select_related(
-            "business_user",
-            "reviewer"
+            "business_user", "reviewer"
         ).order_by("-created_at")
         queryset = self._filter_by_param(
             queryset, "business_user_id"
         )
-        return self._filter_by_param(
-            queryset, "reviewer_id"
-        )
+        return self._filter_by_param(queryset, "reviewer_id")
 
     def _filter_by_param(self, queryset, param_name):
         value = self.request.query_params.get(param_name)
@@ -42,7 +53,7 @@ class ReviewDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [
-        permissions.IsAuthenticatedOrReadOnly,
+        permissions.IsAuthenticated,
         IsReviewAuthor,
     ]
     http_method_names = [
